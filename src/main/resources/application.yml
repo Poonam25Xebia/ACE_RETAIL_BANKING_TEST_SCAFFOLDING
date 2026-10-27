@@ -1,0 +1,74 @@
+# SCAFFOLD-SVC-001 (spec_functional / AC-1): all configuration is externalized through
+# environment variables. Defaults are limited to non-secret localhost values; credentials
+# have no defaults and must be supplied via the environment.
+spring:
+  application:
+    name: account-management-service
+  autoconfigure:
+    # No default in-memory user / generated password; authentication flows are out of scope.
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+
+  # PostgreSQL - canonical datastore (required; startup fails fast if unreachable or credentials missing).
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:account_management}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+    hikari:
+      connection-timeout: ${POSTGRES_CONNECTION_TIMEOUT_MS:5000}
+      maximum-pool-size: ${POSTGRES_MAX_POOL_SIZE:10}
+
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+
+  # MongoDB - optional, wired but unused (connections are lazy).
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/account_management}
+      repositories:
+        type: none
+    # Redis - optional, wired but unused (connections are lazy).
+    redis:
+      repositories:
+        enabled: false
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:2s}
+    jdbc:
+      repositories:
+        enabled: false
+
+  # Kafka - optional, wired but unused (no listeners or topics declared).
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+grpc:
+  server:
+    port: ${GRPC_SERVER_PORT:9090}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  health:
+    # Optional dependencies do not affect overall health unless explicitly enabled.
+    mongo:
+      enabled: ${MONGODB_HEALTH_ENABLED:false}
+    redis:
+      enabled: ${REDIS_HEALTH_ENABLED:false}
+
+logging:
+  level:
+    # Suppress repeated connection-refused stack traces while optional MongoDB is not running.
+    org.mongodb.driver.cluster: ${MONGODB_CLUSTER_LOG_LEVEL:WARN}
